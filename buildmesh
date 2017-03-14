@@ -1,0 +1,41 @@
+echo "How many refinements would you like to occur?"
+read refinements 	   	     	     # obtaining input from the user
+while [ $refinements -lt 1 ] 		     # validating that user input is valid
+do
+	if [ $refinements -lt 1 ]
+	then
+		echo "Please pick a number greater than or equal to 1"
+		read refinements
+	fi
+done
+cd MESHGEN					# generating initial mesh
+./mesh_init -f "../GlobalOcean/NA2D.poly"
+./dens_info
+./mesh_opti -b 1 -i 500
+./dens_info
+./mesh_opti -b 1 -i 1000
+./dens_info
+cd ..
+bash run				    # copying files to new name indicating they havent been refined
+cp neibs.dat neibs_refined_0.dat
+cp nodes3D.dat nodes3D_refined_0.dat
+cp trigs.dat trigs_refined_0.dat
+cp verts3D.dat verts3D_refined_0.dat
+cp voros.dat voros_refined_0.dat
+
+for i in `seq 1 $refinements`; do	     # loop to go through the refinement process
+cd MESHGEN    		       	  	     # loop iterates for a user defined amount of
+./dens_info			  	     # times
+./mesh_refi -u 1 -b 1
+./dens_info
+./mesh_opti -b 1 -i 1000
+./dens_info
+./mesh_opti -b 1 -i 1000
+cd ..
+bash run
+cp neibs.dat neibs_refined_$i.dat	     # makes copy of files and names them based on the number of
+cp nodes3D.dat nodes3D_refined_$i.dat	     # refinements that have been done on the mesh
+cp trigs.dat trigs_refined_$i.dat
+cp verts3D.dat verts3D_refined_$i.dat
+cp voros.dat voros_refined_$i.dat
+done
