@@ -1,0 +1,77 @@
+echo "How many refinements would you like to occur?"
+read refinements
+q_avg_old=5000
+   	     	     # obtaining input from the user
+while [ $refinements -lt 1 ] 		     # validating that user input is valid
+do
+	if [ $refinements -lt 1 ]
+	then
+		echo "Please pick a number greater than or equal to 1"
+		read refinements
+	fi
+done
+cd MESHGEN					# generating initial mesh
+./mesh_init -f "../GlobalOcean/NA2D.poly"
+./dens_info > densinfo.txt
+awk '{print $6}' densinfo.txt > densinfo2.txt
+nodes="$(awk 'NR % 2 == 1' densinfo2.txt)"
+./mesh_opti -b 1 -i 500
+
+
+cd ..
+bash run				    # copying files to new name indicating they havent been refined
+cp neibs.dat neibs_nodes_$nodes.dat
+cp nodes3D.dat nodes3D_nodes_$nodes.dat
+cp trigs.dat trigs_nodes_$nodes.dat
+cp verts3D.dat verts3D_nodes_$nodes.dat
+cp voros.dat voros_nodes_$nodes.dat
+
+for i in `seq 1 $refinements`; do	     # loop to go through the refinement process
+cd MESHGEN    		       	  	     # loop iterates for a user defined amount of
+./dens_info			  	     # times
+./mesh_refi -u 1 -b 1
+./mesh_opti -b 1 -i 500 > Opti1.txt
+awk '/q_avg/ END {print}' Opti1.txt > Opti2.txt
+awk '{print $3}' Opti2.txt > Opti3.txt
+awk 'NR % 2 == 0' Opti3.txt > Opti4.txt
+cat Opti4.txt | awk '{print}' | cut -f2 -d"."  > Opti5.txt
+typeset -i q_avg=$(cat Opti5.txt)
+
+q_div=$(expr $q_avg - $q_avg_old)
+
+echo "Old Avg: $q_avg_old"
+echo "New Avg: $q_avg"
+echo "Subtracted: $q_div"
+
+
+while [ $q_avg -ne 980000  ]
+do
+q_avg_old="$q_avg"
+./mesh_opti -b 1 -i 1000 > Opti1.txt
+awk '/q_avg/ END {print}' Opti1.txt > Opti2.txt
+awk '{print $3}' Opti2.txt > Opti3.txt
+awk 'NR % 2 == 0' Opti3.txt > Opti4.txt
+cat Opti4.txt | awk '{print}' | cut -f2 -d"."  > Opti5.txt
+typeset -i q_avg=$(cat Opti5.txt)
+
+q_div=$(expr $q_avg - $q_avg_old)
+
+echo "Old Avg: $q_avg_old"
+echo "New Avg: $q_avg"
+echo "Subtracted: $q_div"
+
+done
+
+
+
+./dens_info > densinfo.txt
+awk '{print $6}' densinfo.txt > densinfo2.txt
+nodes="$(awk 'NR % 2 == 1' densinfo2.txt)"
+cd ..
+bash run
+cp neibs.dat neibs_nodes_$nodes.dat	     # makes copy of files and names them based on the number of
+cp nodes3D.dat nodes3D_nodes_$nodes.dat	     # refinements that have been done on the mesh
+cp trigs.dat trigs_nodes_$nodes.dat
+cp verts3D.dat verts3D_nodes_$nodes.dat
+cp voros.dat voros_nodes_$nodes.dat
+done
