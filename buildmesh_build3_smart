@@ -1,0 +1,97 @@
+###################################################
+# Mesh Generation Program: Build3-smart           #
+# Arthur Krantz                                   #
+# Clemson University: Research for Dr. Chen       #
+#                                                 #
+# will place README in scvdt_sub directory        #
+#                                                 #
+###################################################
+
+#!/bin/bash
+echo "How many refinements would you like to occur?"
+read refinements						#obtaining user input
+
+while [ $refinements -lt 1 ] 		     # validating that user input is valid
+do
+	if [ $refinements -lt 1 ]
+	then
+		echo "Please pick a number greater than or equal to 1"
+		read refinements
+	fi
+done
+cd MESHGEN					# generating initial mesh
+./mesh_init -f "../../GlobalOcean/NA2D.poly"
+./dens_info > densinfo.txt
+awk '{print $6}' densinfo.txt > densinfo2.txt
+nodes="$(awk 'NR % 2 == 1' densinfo2.txt)"			#saving number of nodes value to assign to file names
+./mesh_opti -b 1 -i 1000
+
+
+cd ..
+bash run				    # copying files to new name indicating they havent been refined: file names made unique with number of nodes in them
+cp neibs.dat neibs_nodes_$nodes.dat
+cp nodes3D.dat nodes3D_nodes_$nodes.dat
+cp trigs.dat trigs_nodes_$nodes.dat
+cp verts3D.dat verts3D_nodes_$nodes.dat
+cp voros.dat voros_nodes_$nodes.dat
+
+for i in `seq 1 $refinements`; do	     # loop to go through the refinement process
+cd MESHGEN    		       	  	     # loop iterates for a user defined amount of
+./dens_info			  	     # times
+./mesh_refi -u 1 -b 1
+./mesh_opti -b 1 -i 500 > Opti1.txt		#set of commands to obtain initial quality of refined mesh
+awk '/'q_avg'/ {print}' Opti1.txt > Opti2.txt
+awk '{print $3}' Opti2.txt > Opti3.txt
+awk 'NR % 2 == 0' Opti3.txt > Opti4.txt
+cat Opti4.txt | awk '{print}' | cut -f2 -d"."  > Opti5.txt
+typeset -i q_avg=$(cat Opti5.txt)
+
+
+$q_avg > avg_quality_refi_$i.txt			#making text file to store average quality of meshes in for possible future use
+echo "****Average Quality Before Optimizing loop****"
+echo "                 Q_avg: $q_avg                "
+echo ""
+count=0
+
+while [ $q_avg -lt 995000  ]			#loop iterates through, optimizing the mesh until it reaches a quality of atleast 98 percent
+do
+q_avg_old="$q_avg"
+./mesh_opti -b 1 -i 1000 > Opti1.txt
+awk ' /'q_avg'/ {print}' Opti1.txt > Opti2.txt
+awk '{print $3}' Opti2.txt > Opti3.txt
+awk 'NR % 2 == 0' Opti3.txt > Opti4.txt
+cat Opti4.txt | awk '{print}' | cut -f2 -d"."  > Opti5.txt
+typeset -i q_avg=$(cat Opti5.txt)
+echo ""
+echo $q_avg > avg_quality_refi_$i.txt
+echo "*****Quality before Optimization****"
+echo "         Old Avg: $q_avg_old"
+echo "****Quality after Optimization****"
+echo "         New Avg: $q_avg"
+echo ""
+./dens_info
+echo ""
+count=$((count + 1))				
+echo "Optimization loop count: $count"
+echo ""
+if [ $count -eq 1000 ]				#if statement to stop loop if it has not reached a quality of 98 percent in 1000 interations
+then
+echo "Exiting after max allowed loop interations"
+echo ""
+break
+fi
+done
+
+
+
+./dens_info > densinfo.txt
+awk '{print $6}' densinfo.txt > densinfo2.txt
+nodes="$(awk 'NR % 2 == 1' densinfo2.txt)"
+cd ..
+bash run
+cp neibs.dat neibs_nodes_$nodes.dat	     # makes copy of files and names them based on the number of
+cp nodes3D.dat nodes3D_nodes_$nodes.dat	     # nodes that they have
+cp trigs.dat trigs_nodes_$nodes.dat
+cp verts3D.dat verts3D_nodes_$nodes.dat
+cp voros.dat voros_nodes_$nodes.dat
+done
