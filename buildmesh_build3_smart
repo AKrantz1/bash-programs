@@ -47,7 +47,7 @@ cat Opti4.txt | awk '{print}' | cut -f2 -d"."  > Opti5.txt
 typeset -i q_avg=$(cat Opti5.txt)
 
 
-echo $q_avg >> avg_quality_refi_$i.txt			#making text file to store average quality of meshes in for possible future use
+echo $q_avg > avg_quality_refi_$i.txt			#making text file to store average quality of meshes in for possible future use
 echo "****Average Quality Before Optimizing loop****"
 echo "                 Q_avg: $q_avg                "
 echo ""
@@ -63,7 +63,7 @@ awk 'NR % 2 == 0' Opti3.txt > Opti4.txt
 cat Opti4.txt | awk '{print}' | cut -f2 -d"."  > Opti5.txt
 typeset -i q_avg=$(cat Opti5.txt)
 echo ""
-echo $q_avg > avg_quality_refi_$i.txt
+echo $q_avg >> avg_quality_refi_$i.txt
 echo "*****Quality before Optimization****"
 echo "         Old Avg: $q_avg_old"
 echo "****Quality after Optimization****"
